@@ -1,62 +1,105 @@
 import './assets/scss/style.scss';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
+//import 'react-tabs/style/react-tabs.css';
+import _ from 'lodash';
+
+
 
 function App() {
 
-  // ATM you need to manually add new items and update the total values per item 
-  const [dressupState, setDressupState] = useState({
-    eyes: {current: 0, total: 9},
-    ears: {current: 0, total: 3},
-    mouth: {current: 0, total: 4},
-    nose: {current: 0, total: 3},
-    clothes: {current: 0, total: 3},  
-  });
+  const [folders, setFolders] = useState([]);
+  const [images, setImages] = useState({});
 
-  function next(item){
-    let next_num = dressupState[item].current + 1
-    // if next_num exceeds total, restart (set current to 0)
-    let new_current = next_num < dressupState[item].total ? next_num : 0
-    updateDressUp(item, new_current)
-  }
+  useEffect(() => {
 
-  function updateDressUp(item,new_current){
-    setDressupState({
-      ...dressupState,
-      [item]: {
-        current: dressupState[item].current = new_current, 
-        total: dressupState[item].total
-      }
-    })
-  }
+    fetch(`https://7da7-119-18-0-196.au.ngrok.io/api/v1/byob/listfiles`)
+      .then(response => response.json())
+      .then(jsonResponse => {
+        setImages(jsonResponse.data);
+        setFolders(jsonResponse.data.images);
+      })
+      .catch(error => console.error(error));
+  }, []);
 
-  function randomize(){
-    // for each dressup item, generate a random integer and assign it to current 
-    Object.keys(dressupState).map((item) => 
-      updateDressUp(item, Math.floor(Math.random() * Math.floor(dressupState[item].total)))
-    )
+  function handleClick(url) {
+
+    const folder = url.split('|')[0];
+    const divFolder = (document.getElementById(folder));
+    const divs = divFolder.getElementsByTagName('div');
+
+    for (let i = 0; i < divs.length; i++) {
+      divs[i].style.display = 'none';
+    }
+
+    document.getElementById(url).style.display = 'block';
+
   }
 
   return (
     <div className="App">
-      <div id="container">
-        <div id="background">
-            <div id="body"></div>
-            { Object.keys(dressupState).map((item) => 
-                <div id={item} className={item+(dressupState[item].current+1)} key={item}></div>
+      <Tabs>
+        <TabList>
+          {
+            Object.keys(folders).map((item) => <Tab>{item}</Tab>)
+          }
+        </TabList>
+        {
+          Object.keys(folders).map((folder) => {
+
+            let url = "https://byob-boop-dev.s3.ap-southeast-2.amazonaws.com/" + encodeURIComponent(folder) + "/"
+            return (<TabPanel>
+              {
+                images.images[folder].images.filter(f => f.indexOf('.png') >= 0).map(i => <Thumbnail imageSrc={url + encodeURIComponent(i)} onClick={() => handleClick(folder + '|' + i)} />)
+              }
+            </TabPanel>)
+          }
+          )
+        }
+      </Tabs>
+      <div className="canva">
+        <div className="nft-container">
+          <div className="nft-layers">
+            {
+              Object.keys(folders).map((folder, indexFolder) => {
+
+
+
+                let url = "https://byob-boop-dev.s3.ap-southeast-2.amazonaws.com/" + encodeURIComponent(folder) + "/"
+                return (<div style={{ zIndex: indexFolder, position: 'relative' }} id={folder}>
+                  {
+                    images.images[folder].images.filter(f => f.indexOf('.png') >= 0).map((imagem, index) => {
+
+                      const urlForImage = `url(${url + encodeURIComponent(imagem)})`;
+
+
+
+                      return (<div id={folder + '|' + imagem} className="nft-layer" style={{ backgroundImage: urlForImage, display: index == 0 ? 'block' : 'none' }} ></div>);
+
+                    })
+                  }
+                </div>)
+              }
               )
-            } 
+            }
+
+          </div>
         </div>
       </div>
-
-      { Object.keys(dressupState).map((item) => 
-          <input type="button" value={"next "+item} key={item} id={"next"+item} onClick={() => next(item)}/>
-        )
-      }
-
-      <input type="button" value="RANDOMIZE" id="randomize" onClick={() => randomize()}/>
-
     </div>
   );
 }
+
+function Thumbnail(props) {
+  const { imageSrc, onClick } = props;
+
+  return (
+    <button className="thumbnail-button" onClick={onClick}>
+      <div className="thumbnail" style={{ backgroundImage: `url(${imageSrc})` }}></div>
+    </button>
+  );
+}
+
+
 
 export default App;
